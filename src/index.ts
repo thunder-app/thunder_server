@@ -2,17 +2,20 @@ import express from "express";
 
 // Types
 import { Request, Response } from "express";
-import { NotificationRequest } from "./types/notification_request";
+import {
+  NotificationRequest,
+  DeleteNotificationRequest,
+} from "./types/notification_request";
 
 // Database
 import sequelize from "./database/database";
 
 // Helper functions
-import { addNotification } from "./notifications/notifications";
+import { addAccountNotification } from "./notifications/notifications";
 
 // Start cron job
 import notificationService from "./notifications/service/notification_service";
-import Notification from "./database/models/notification";
+import AccountNotification from "./database/models/account_notification";
 notificationService.start();
 
 const DEBUG_MODE = true;
@@ -27,40 +30,38 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.post("/notifications", async (req: Request, res: Response) => {
-  const { type, token, jwts, instance } = req.body as NotificationRequest;
+  const { type, token, jwt, instance } = req.body as NotificationRequest;
 
-  if (!type || !token || !jwts || !instance)
+  if (!type || !token || !jwt || !instance)
     return res.status(400).send("Missing one or more required parameters");
 
   try {
     const results = [];
 
-    for (const jwt of jwts) {
-      let notification = await addNotification(type, token, jwt, instance);
-      results.push(notification.toJSON());
-    }
+    let notification = await addAccountNotification(type, token, jwt, instance);
+    results.push(notification.toJSON());
 
     res.status(201).json(results);
   } catch (error) {
-    console.error("Error creating notification:", error);
+    console.error("Error creating account notification:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
 app.delete("/notifications", (req, res) => {
-  const { jwts } = req.body as NotificationRequest;
+  const { jwts } = req.body as DeleteNotificationRequest;
 
   if (!jwts)
     return res.status(400).send("Missing one or more required parameters");
 
   try {
     for (const jwt of jwts) {
-      let notification = Notification.destroy({ where: { jwt } });
+      let notification = AccountNotification.destroy({ where: { jwt } });
     }
 
-    res.status(200).json({ message: "Notifications deleted successfully" });
+    res.status(200).json({ message: "Account notifications deleted successfully" });
   } catch (error) {
-    console.error("Error deleting notification:", error);
+    console.error("Error deleting account notification:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

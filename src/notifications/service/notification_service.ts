@@ -3,16 +3,25 @@ import { Op } from "sequelize";
 import { isAfter, subMinutes } from "date-fns";
 import { LemmyHttp } from "lemmy-js-client";
 
-import Notification from "../../database/models/notification";
+import AccountNotification from "../../database/models/account_notification";
 import { provider, createAPNSNotification } from "../apns/apns";
 import { createUnifiedPushNotification, sendUnifiedPushNotification } from "../unifiedpush/unifiedpush";
 
+// The interval in minutes to check for new notifications
 const INTERVAL = 1;
+
+// The current trigger time for the cron job
 let triggerDateTime;
 
+/**
+ * Checks for new unread replies, and sends a notification for each one based on the type of the notification.
+ * 
+ * @param client - the Lemmy HTTP client to use to make API calls. This client should already be initialized with the proper [jwt].
+ * @param notification - the [AccountNotification] to check for unread replies.
+ */
 async function checkUnreadReplies(
   client: LemmyHttp,
-  notification: Notification
+  notification: AccountNotification
 ) {
   const timestamp = notification.get("timestamp") as Date;
 
@@ -24,7 +33,8 @@ async function checkUnreadReplies(
 
   // Filter out replies newer than the last timestamp
   replies = replies.filter((reply) => {
-    return isAfter(new Date(reply.comment.published), subMinutes(timestamp, 90));
+    // Change `0` to the number of minutes you want to check. It makes it easier to debug without having to create a lot of replies.
+    return isAfter(new Date(reply.comment.published), subMinutes(timestamp, 0));
   });
 
   console.log("Found " + replies.length + " unread replies");
@@ -41,7 +51,6 @@ async function checkUnreadReplies(
         );
         break;
       case "unifiedPush":
-        // TODO: send push notification
         await sendUnifiedPushNotification(createUnifiedPushNotification(undefined, reply, undefined), token);
         break;
       default:
@@ -50,9 +59,15 @@ async function checkUnreadReplies(
   }
 }
 
+/**
+ * Checks for new unread mentions, and sends a notification for each one based on the type of the notification.
+ * 
+ * @param client - the Lemmy HTTP client to use to make API calls. This client should already be initialized with the proper [jwt].
+ * @param notification - the [AccountNotification] to check for unread mentions.
+ */
 async function checkUnreadMentions(
   client: LemmyHttp,
-  notification: Notification
+  notification: AccountNotification
 ) {
   const timestamp = notification.get("timestamp") as Date;
 
@@ -64,7 +79,7 @@ async function checkUnreadMentions(
 
   // Filter out mentions newer than the last timestamp
   mentions = mentions.filter((mention) => {
-    return isAfter(new Date(mention.person_mention.published), timestamp);
+    return isAfter(new Date(mention.person_mention.published), subMinutes(timestamp, 0));
   });
 
   console.log("Found " + mentions.length + " unread mentions");
@@ -80,7 +95,7 @@ async function checkUnreadMentions(
           token
         );
       case "unifiedPush":
-        // TODO: send push notification
+        await sendUnifiedPushNotification(createUnifiedPushNotification(mention, undefined, undefined), token);
         break;
       default:
         break;
@@ -88,9 +103,15 @@ async function checkUnreadMentions(
   }
 }
 
+/**
+ * Checks for new unread private messages, and sends a notification for each one based on the type of the notification.
+ * 
+ * @param client - the Lemmy HTTP client to use to make API calls. This client should already be initialized with the proper [jwt].
+ * @param notification - the [AccountNotification] to check for unread private messages.
+ */
 async function checkUnreadMessages(
   client: LemmyHttp,
-  notification: Notification
+  notification: AccountNotification
 ) {
   const timestamp = notification.get("timestamp") as Date;
 
@@ -102,7 +123,7 @@ async function checkUnreadMessages(
 
   // Filter out messages newer than the last timestamp
   privateMessages = privateMessages.filter((message) => {
-    return isAfter(new Date(message.private_message.published), timestamp);
+    return isAfter(new Date(message.private_message.published), subMinutes(timestamp, 0));
   });
 
   console.log("Found " + privateMessages.length + " unread messages");
@@ -118,7 +139,7 @@ async function checkUnreadMessages(
           token
         );
       case "unifiedPush":
-        // TODO: send push notification
+        await sendUnifiedPushNotification(createUnifiedPushNotification(undefined, undefined, message), token);
         break;
       default:
         break;
@@ -126,17 +147,20 @@ async function checkUnreadMessages(
   }
 }
 
+/**
+ * The main function that checks for new notifications. This is triggered from a cron job and is ran at every `INTERVAL` minutes.
+ */
 const checkNotifications = async () => {
   triggerDateTime = new Date();
 
-  const notifications = await Notification.findAll({
+  const notifications = await AccountNotification.findAll({
     where: { timestamp: { [Op.lt]: subMinutes(triggerDateTime, INTERVAL) } },
   });
 
   console.log("Found " + notifications.length + " notifications to check");
 
   // Group notifications by instance
-  let groupedNotifications: { [key: string]: Notification[] } = {};
+  let groupedNotifications: { [key: string]: AccountNotification[] } = {};
 
   for (const notification of notifications) {
     const instance = notification.get("instance") as string;

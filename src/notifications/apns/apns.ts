@@ -17,6 +17,15 @@ const options = {
 
 const provider = new apn.Provider(options);
 
+/**
+ * Creates the template for the notification to be sent to APNs.
+ * 
+ * @param mention - the [PersonMentionView] associated with the notification
+ * @param reply - the [CommentReplyView] associated with the notification
+ * @param message - the [PrivateMessageView] associated with the notification
+ * 
+ * @returns {apn.Notification} the notification to be sent
+ */
 function createAPNSNotification(
   mention: PersonMentionView | undefined,
   reply: CommentReplyView | undefined,

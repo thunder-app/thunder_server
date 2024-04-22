@@ -1,6 +1,10 @@
 export type NotificationRequest = {
   type: string;
   token: string;
-  jwts: Array<string>;
+  jwt: string;
   instance: string;
+};
+
+export type DeleteNotificationRequest = {
+  jwts: Array<string>;
 };

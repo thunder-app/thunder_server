@@ -2,9 +2,9 @@ import { DataTypes, Model } from "sequelize";
 
 import sequelize from "../database";
 
-class Notification extends Model {}
+class AccountNotification extends Model {}
 
-Notification.init(
+AccountNotification.init(
   {
     id: {
       type: DataTypes.INTEGER,
@@ -40,4 +40,4 @@ Notification.init(
   { sequelize }
 );
 
-export default Notification;
+export default AccountNotification;
