@@ -20,7 +20,7 @@ if (process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID) {
   provider = new apn.Provider(options);
 }
 else {
-  console.log("Warning: APN Key ID or Team ID is empty; not initializing APN service.");
+  console.warn("APN Key ID or Team ID is empty; not initializing APN service.");
 }
 
 /**
