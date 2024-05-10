@@ -6,16 +6,22 @@ import {
   PrivateMessageView,
 } from "lemmy-js-client";
 
-const options = {
-  token: {
-    key: "src/notifications/apns/apns.p8",
-    keyId: process.env.APNS_KEY_ID as string,
-    teamId: process.env.APNS_TEAM_ID as string,
-  },
-  production: false,
-};
+let provider : apn.Provider;
+if (process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID) {
+  const options = {
+    token: {
+      key: "src/notifications/apns/apns.p8",
+      keyId: process.env.APNS_KEY_ID as string,
+      teamId: process.env.APNS_TEAM_ID as string,
+    },
+    production: false,
+  };
 
-const provider = new apn.Provider(options);
+  provider = new apn.Provider(options);
+}
+else {
+  console.log("Warning: APN Key ID or Team ID is empty; not initializing APN service.");
+}
 
 /**
  * Creates the template for the notification to be sent to APNs.
