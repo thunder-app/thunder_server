@@ -3,8 +3,11 @@ import {
   PersonMentionView,
   PrivateMessageView,
 } from "lemmy-js-client";
+import { setGlobalDispatcher, Agent } from "undici";
 
 import { UnifiedPushObject } from "./../../types/unified_push_object";
+
+setGlobalDispatcher(new Agent({connect: { timeout: 30_000 }}));
 
 /**
  * Creates the template for the notification to be sent to UnifiedPush.
