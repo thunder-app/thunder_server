@@ -48,4 +48,19 @@ async function sendUnifiedPushNotification(
   });
 }
 
-export { createUnifiedPushNotification, sendUnifiedPushNotification };
+/**
+ * Sends the notification through UnifiedPush.
+ */
+async function sendTestUnifiedPushNotification(
+  token: string
+) {
+  fetch(token, {
+    method: "POST",
+    body: 'test',
+    headers: {
+      "Content-type": "application/json; charset=UTF-8",
+    },
+  });
+}
+
+export { createUnifiedPushNotification, sendUnifiedPushNotification, sendTestUnifiedPushNotification };

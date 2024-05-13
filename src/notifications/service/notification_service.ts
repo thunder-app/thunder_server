@@ -2,10 +2,11 @@ import cron from "node-cron";
 import { Op } from "sequelize";
 import { isAfter, subMinutes } from "date-fns";
 import { LemmyHttp } from "lemmy-js-client";
+import { Sequelize } from "sequelize";
 
 import AccountNotification from "../../database/models/account_notification";
 import { provider, createAPNSNotification } from "../apns/apns";
-import { createUnifiedPushNotification, sendUnifiedPushNotification } from "../unifiedpush/unifiedpush";
+import { createUnifiedPushNotification, sendTestUnifiedPushNotification, sendUnifiedPushNotification } from "../unifiedpush/unifiedpush";
 
 // The interval in minutes to check for new notifications
 const INTERVAL = 1;
@@ -147,6 +148,25 @@ async function checkUnreadMessages(
   }
 }
 
+async function checkTests(notification: AccountNotification) {
+  if (notification.get("testQueued") as boolean) {
+    console.log('Found 1 test queued');
+    
+    const notificationType = notification.get("type") as string;
+    const token = notification.get("token") as string;
+
+    switch (notificationType) {
+      case "apn":
+        // TODO: Implement this for APN
+      case "unifiedPush":
+        await sendTestUnifiedPushNotification(token);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 /**
  * The main function that checks for new notifications. This is triggered from a cron job and is ran at every `INTERVAL` minutes.
  */
@@ -154,7 +174,7 @@ const checkNotifications = async () => {
   triggerDateTime = new Date();
 
   const notifications = await AccountNotification.findAll({
-    where: { timestamp: { [Op.lt]: subMinutes(triggerDateTime, INTERVAL) } },
+    where: Sequelize.or({ timestamp: { [Op.lt]: subMinutes(triggerDateTime, INTERVAL) } }, { testQueued: true }),
   });
 
   console.log("Found " + notifications.length + " notifications to check");
@@ -191,9 +211,10 @@ const checkNotifications = async () => {
         await checkUnreadReplies(client, notification);
         await checkUnreadMentions(client, notification);
         await checkUnreadMessages(client, notification);
+        await checkTests(notification);
 
         // Update the notification timestamp
-        await notification.update({ timestamp: triggerDateTime });
+        await notification.update({ timestamp: triggerDateTime, testQueued: false });
       } catch (error) {
         console.error(error);
       }
@@ -221,4 +242,4 @@ const notificationService = cron.schedule(
   }
 );
 
-export default notificationService;
+export { notificationService, checkNotifications };
