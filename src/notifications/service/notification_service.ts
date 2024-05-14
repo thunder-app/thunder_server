@@ -30,6 +30,7 @@ async function checkUnreadReplies(
   let { replies } = await client.getReplies({
     limit: 50,
     unread_only: true,
+    sort: "New",
   });
 
   // Filter out replies newer than the last timestamp
@@ -76,6 +77,7 @@ async function checkUnreadMentions(
   let { mentions } = await client.getPersonMentions({
     limit: 50,
     unread_only: true,
+    sort: "New",
   });
 
   // Filter out mentions newer than the last timestamp
