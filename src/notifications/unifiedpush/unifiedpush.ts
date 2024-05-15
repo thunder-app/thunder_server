@@ -7,6 +7,8 @@ import { setGlobalDispatcher, Agent } from "undici";
 
 import { UnifiedPushObject } from "./../../types/unified_push_object";
 
+import { createSlimCommentReplyView } from "../../types/lemmy";
+
 setGlobalDispatcher(new Agent({connect: { timeout: 30_000 }}));
 
 /**
@@ -24,7 +26,8 @@ function createUnifiedPushNotification(
   message: PrivateMessageView | undefined
 ): UnifiedPushObject {
   const note: UnifiedPushObject = {
-    reply: reply,
+    reply: createSlimCommentReplyView(reply),
+    // TODO: Use slim models for mention/message below
     mention: mention,
     message: message,
   };
