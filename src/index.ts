@@ -11,10 +11,10 @@ import {
 import sequelize from "./database/database";
 
 // Helper functions
-import { addAccountNotification } from "./notifications/notifications";
+import { addAccountNotification, generateTestNotification } from "./notifications/notifications";
 
 // Start cron job
-import notificationService from "./notifications/service/notification_service";
+import { notificationService, checkNotifications } from "./notifications/service/notification_service";
 import AccountNotification from "./database/models/account_notification";
 notificationService.start();
 
@@ -62,6 +62,25 @@ app.delete("/notifications", (req, res) => {
     res.status(200).json({ message: "Account notifications deleted successfully" });
   } catch (error) {
     console.error("Error deleting account notification:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/test", async (req: Request, res: Response) => {
+  const { jwt } = req.body as NotificationRequest;
+
+  if (!jwt)
+    return res.status(400).send("Missing one or more required parameters");
+
+  try {
+    let result = await generateTestNotification(jwt);
+
+    res.status(201).json(result);
+
+    // Do a check right away
+    checkNotifications();
+  } catch (error) {
+    console.error("Error creating test notification:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

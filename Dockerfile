@@ -19,4 +19,4 @@ COPY . .
 EXPOSE 5100
 
 # Wait for PostgreSQL to be ready and then start the Node.js server
-CMD ["wait-for-it", "postgres:5432", "--", "npm", "start"]
+CMD wait-for-it $POSTGRES_HOSTNAME:5432 -- npm start

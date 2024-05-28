@@ -68,4 +68,10 @@ async function deleteAccountNotification(
   return await AccountNotification.destroy({ where: { token } });
 }
 
-export { addAccountNotification, getAccountNotification, deleteAccountNotification };
+async function generateTestNotification(
+  jwt: string | undefined,
+): Promise<[affectedCount: number]> {
+  return AccountNotification.update({ testQueued: true }, { where: { jwt } });
+}
+
+export { addAccountNotification, getAccountNotification, deleteAccountNotification, generateTestNotification };
