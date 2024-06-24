@@ -11,9 +11,6 @@ import { createUnifiedPushNotification, sendTestUnifiedPushNotification, sendUni
 // The interval in minutes to check for new notifications
 const INTERVAL = 1;
 
-// The current trigger time for the cron job
-let triggerDateTime;
-
 /**
  * Checks for new unread replies, and sends a notification for each one based on the type of the notification.
  * 
@@ -24,7 +21,8 @@ async function checkUnreadReplies(
   client: LemmyHttp,
   notification: AccountNotification
 ) {
-  const timestamp = notification.get("timestamp") as Date;
+  // You can hard-code this to a lower number for testing
+  var lastReplyId = notification.get("lastReplyId") as number;
 
   // Get all unread replies
   let { replies } = await client.getReplies({
@@ -33,11 +31,20 @@ async function checkUnreadReplies(
     sort: "New",
   });
 
-  // Filter out replies newer than the last timestamp
+  // Filter out replies newer than the last id
   replies = replies.filter((reply) => {
-    // Change `0` to the number of minutes you want to check. It makes it easier to debug without having to create a lot of replies.
-    return isAfter(new Date(reply.comment.published), subMinutes(timestamp, 0));
+    return reply.comment_reply.id > lastReplyId;
   });
+
+  const firstCheck = lastReplyId == null;
+
+  lastReplyId = replies[0]?.comment_reply?.id || lastReplyId || 0;
+
+  if (firstCheck) {
+    // The first time we check for a given account we don't want to send all notifications from the past.
+    // So just update the ID and let the NEXT check send NEW notifications.
+    return lastReplyId;
+  }
 
   console.log("Found " + replies.length + " unread replies");
 
@@ -59,6 +66,8 @@ async function checkUnreadReplies(
         break;
     }
   }
+
+  return lastReplyId;
 }
 
 /**
@@ -71,7 +80,8 @@ async function checkUnreadMentions(
   client: LemmyHttp,
   notification: AccountNotification
 ) {
-  const timestamp = notification.get("timestamp") as Date;
+  // You can hard-code this to a lower number for testing
+  var lastMentionId = notification.get("lastMentionId") as number;
 
   // Get all unread mentions
   let { mentions } = await client.getPersonMentions({
@@ -80,11 +90,21 @@ async function checkUnreadMentions(
     sort: "New",
   });
 
-  // Filter out mentions newer than the last timestamp
+  // Filter out mentions newer than the last id
   mentions = mentions.filter((mention) => {
-    return isAfter(new Date(mention.person_mention.published), subMinutes(timestamp, 0));
+    return mention.person_mention.id > lastMentionId;
   });
 
+  const firstCheck = lastMentionId == null;
+
+  lastMentionId = mentions[0]?.person_mention?.id || lastMentionId || 0;
+
+  if (firstCheck) {
+    // The first time we check for a given account we don't want to send all notifications from the past.
+    // So just update the ID and let the NEXT check send NEW notifications.
+    return lastMentionId;
+  }
+  
   console.log("Found " + mentions.length + " unread mentions");
 
   for (const mention of mentions) {
@@ -104,6 +124,8 @@ async function checkUnreadMentions(
         break;
     }
   }
+
+  return lastMentionId;
 }
 
 /**
@@ -116,7 +138,8 @@ async function checkUnreadMessages(
   client: LemmyHttp,
   notification: AccountNotification
 ) {
-  const timestamp = notification.get("timestamp") as Date;
+  // You can hard-code this to a lower number for testing
+  var lastMessageId = notification.get("lastMessageId") as number;
 
   // Get all unread private messages
   let { private_messages: privateMessages } = await client.getPrivateMessages({
@@ -124,10 +147,20 @@ async function checkUnreadMessages(
     unread_only: true,
   });
 
-  // Filter out messages newer than the last timestamp
-  privateMessages = privateMessages.filter((message) => {
-    return isAfter(new Date(message.private_message.published), subMinutes(timestamp, 0));
+  // Filter out messages newer than the last id
+  privateMessages = privateMessages.filter((privateMessage) => {
+    return privateMessage.private_message.id > lastMessageId;
   });
+
+  const firstCheck = lastMessageId == null;
+
+  lastMessageId = privateMessages[0]?.private_message?.id || lastMessageId || 0;
+
+  if (firstCheck) {
+    // The first time we check for a given account we don't want to send all notifications from the past.
+    // So just update the ID and let the NEXT check send NEW notifications.
+    return lastMessageId;
+  }
 
   console.log("Found " + privateMessages.length + " unread messages");
 
@@ -148,6 +181,8 @@ async function checkUnreadMessages(
         break;
     }
   }
+
+  return lastMessageId;
 }
 
 async function checkTests(notification: AccountNotification) {
@@ -173,11 +208,7 @@ async function checkTests(notification: AccountNotification) {
  * The main function that checks for new notifications. This is triggered from a cron job and is ran at every `INTERVAL` minutes.
  */
 const checkNotifications = async () => {
-  triggerDateTime = new Date();
-
-  const notifications = await AccountNotification.findAll({
-    where: Sequelize.or({ timestamp: { [Op.lt]: subMinutes(triggerDateTime, INTERVAL) } }, { testQueued: true }),
-  });
+  const notifications = await AccountNotification.findAll();
 
   console.log("Found " + notifications.length + " notifications to check");
 
@@ -210,13 +241,13 @@ const checkNotifications = async () => {
       client.setHeaders({ Authorization: `Bearer ${jwt}` });
 
       try {
-        await checkUnreadReplies(client, notification);
-        await checkUnreadMentions(client, notification);
-        await checkUnreadMessages(client, notification);
+        const lastReplyId = await checkUnreadReplies(client, notification);
+        const lastMentionId = await checkUnreadMentions(client, notification);
+        const lastMessageId = await checkUnreadMessages(client, notification);
         await checkTests(notification);
 
-        // Update the notification timestamp
-        await notification.update({ timestamp: triggerDateTime, testQueued: false });
+        // Update the notification
+        await notification.update({ lastReplyId: lastReplyId, lastMentionId: lastMentionId, lastMessageId: lastMessageId, testQueued: false });
       } catch (error) {
         console.error(error);
       }
