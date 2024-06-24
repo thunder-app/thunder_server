@@ -41,6 +41,21 @@ AccountNotification.init(
       allowNull: false,
       defaultValue: false
     },
+    lastReplyId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null,
+    },
+    lastMentionId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null,
+    },
+    lastMessageId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null,
+    },
   },
   { sequelize }
 );
