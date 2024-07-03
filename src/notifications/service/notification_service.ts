@@ -36,11 +36,11 @@ async function checkUnreadReplies(
     return reply.comment_reply.id > lastReplyId;
   });
 
-  const firstCheck = lastReplyId == null;
+  const isFirstCheck = lastReplyId == null;
 
   lastReplyId = replies[0]?.comment_reply?.id || lastReplyId || 0;
 
-  if (firstCheck) {
+  if (isFirstCheck) {
     // The first time we check for a given account we don't want to send all notifications from the past.
     // So just update the ID and let the NEXT check send NEW notifications.
     return lastReplyId;
@@ -95,11 +95,11 @@ async function checkUnreadMentions(
     return mention.person_mention.id > lastMentionId;
   });
 
-  const firstCheck = lastMentionId == null;
+  const isFirstCheck = lastMentionId == null;
 
   lastMentionId = mentions[0]?.person_mention?.id || lastMentionId || 0;
 
-  if (firstCheck) {
+  if (isFirstCheck) {
     // The first time we check for a given account we don't want to send all notifications from the past.
     // So just update the ID and let the NEXT check send NEW notifications.
     return lastMentionId;
@@ -152,11 +152,11 @@ async function checkUnreadMessages(
     return privateMessage.private_message.id > lastMessageId;
   });
 
-  const firstCheck = lastMessageId == null;
+  const isFirstCheck = lastMessageId == null;
 
   lastMessageId = privateMessages[0]?.private_message?.id || lastMessageId || 0;
 
-  if (firstCheck) {
+  if (isFirstCheck) {
     // The first time we check for a given account we don't want to send all notifications from the past.
     // So just update the ID and let the NEXT check send NEW notifications.
     return lastMessageId;
