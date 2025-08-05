@@ -1,10 +1,12 @@
 {
-  "name": "thunder_server",
+  "name": "thunder-server",
   "version": "0.1.0",
-  "description": "Server which handles Thunder related services (e.g., notifications)",
+  "description": "A companion server which handles Thunder related services",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "start": "nodemon src/index.ts",
+    "serve": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Hamlet Jiang Su",

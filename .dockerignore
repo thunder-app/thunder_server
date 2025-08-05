@@ -1,0 +1,8 @@
+# Environment Variables
+.env
+
+# Apple Push Notification Certificate
+*.p8
+
+# Node
+node_modules
