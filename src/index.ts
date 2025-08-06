@@ -1,11 +1,12 @@
 import express from "express";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
 
 // Types
 import { Request, Response } from "express";
-import {
-  NotificationRequest,
-  DeleteNotificationRequest,
-} from "./types/notification_request";
+import { NotificationRequest, DeleteNotificationRequest } from "./types/notification_request";
 
 // Database
 import sequelize from "./database/database";
@@ -18,17 +19,21 @@ import { notificationService, checkNotifications } from "./notifications/service
 import AccountNotification from "./database/models/account_notification";
 notificationService.start();
 
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 // Create an Express app
 const app = express();
-const port = 2831;
+const port = process.env.APP_PORT ? parseInt(process.env.APP_PORT) : 2831;
 
 // Middleware for body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ message: "Thunder server is running" });
+});
+
 app.post("/notifications", async (req: Request, res: Response) => {
   const { type, token, jwt, instance } = req.body as NotificationRequest;
 

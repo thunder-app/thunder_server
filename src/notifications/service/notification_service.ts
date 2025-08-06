@@ -269,10 +269,6 @@ const notificationService = cron.schedule(
       checkNotifications();
     }, randomDelay);
   },
-  {
-    scheduled: true,
-    runOnInit: true,
-  }
 );
 
 export { notificationService, checkNotifications };

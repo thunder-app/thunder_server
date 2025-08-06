@@ -1,22 +1,44 @@
-FROM node:latest
+# Build stage
+FROM node:22-alpine AS builder
 
-# Install wait-for-it
-RUN apt-get update && apt-get install -y wait-for-it
+# Add metadata labels
+LABEL maintainer="Hamlet Jiang Su"
+LABEL description="Thunder server for handling notifications and related services"
+LABEL version="0.1.0"
 
-# Set working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json to the working directory
+# Copy package files
 COPY package*.json ./
+COPY tsconfig.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci --only=production=false
 
-# Copy the rest of the application code to the working directory
-COPY . .
+# Copy source code
+COPY src/ ./src/
+
+# Build TypeScript to JavaScript
+RUN npm run build || npx tsc
+
+# Production stage
+FROM node:22-alpine AS production
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
 
 # Expose the port the app runs on
-EXPOSE 5100
-
-# Wait for PostgreSQL to be ready and then start the Node.js server
-CMD wait-for-it $POSTGRES_HOSTNAME:5432 -- npm start
+EXPOSE 2831
+  
+# Start the server
+CMD ["node", "dist/index.js"]

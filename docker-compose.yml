@@ -1,23 +1,43 @@
-version: '3.8'
-
 services:
-  main:
+  thunder-server:
     build: .
     ports:
-      - "5100:2831"
+      - "${APP_PORT:-2831}:2831"
     depends_on:
-      - postgres
-
-  postgres:
-    image: postgres:latest
-    restart: always
+      postgres:
+        condition: service_healthy
     env_file: .env
     environment:
-      POSTGRES_DB: database
+      - POSTGRES_HOSTNAME=postgres
+      - POSTGRES_PORT=5432
+    restart: unless-stopped
+    networks:
+      - thunder-network
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DATABASE:-thunder_database}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - thunder-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DATABASE:-thunder_database}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  thunder-network:
+    driver: bridge
