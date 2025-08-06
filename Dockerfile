@@ -13,8 +13,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm ci --only=production=false
+# Install all dependencies (including dev dependencies for building)
+# Clear npm cache to avoid potential cache conflicts in CI environments
+RUN npm cache clean --force && npm ci
 
 # Copy source code
 COPY src/ ./src/
@@ -32,7 +33,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN npm cache clean --force && npm ci --omit=dev
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
