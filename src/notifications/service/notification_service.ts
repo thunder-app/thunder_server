@@ -1,12 +1,12 @@
 import cron from "node-cron";
-import { Op } from "sequelize";
-import { isAfter, subMinutes } from "date-fns";
 import { LemmyHttp } from "lemmy-js-client";
-import { Sequelize } from "sequelize";
 
+// Models
 import AccountNotification from "../../database/models/account_notification";
+
+// Notifications
 import { provider, createAPNSNotification } from "../apns/apns";
-import { createUnifiedPushNotification, sendTestUnifiedPushNotification, sendUnifiedPushNotification } from "../unifiedpush/unifiedpush";
+import { createUnifiedPushNotification, sendUnifiedPushNotification } from "../unifiedpush/unifiedpush";
 
 // The interval in minutes to check for new notifications
 const INTERVAL = 1;
@@ -17,12 +17,9 @@ const INTERVAL = 1;
  * @param client - the Lemmy HTTP client to use to make API calls. This client should already be initialized with the proper [jwt].
  * @param notification - the [AccountNotification] to check for unread replies.
  */
-async function checkUnreadReplies(
-  client: LemmyHttp,
-  notification: AccountNotification
-) {
+async function checkUnreadReplies(client: LemmyHttp, notification: AccountNotification) {
   // You can hard-code this to a lower number for testing
-  var lastReplyId = notification.get("lastReplyId") as number;
+  let lastReplyId = notification.get("lastReplyId") as number;
 
   // Get all unread replies
   let { replies } = await client.getReplies({
@@ -32,9 +29,7 @@ async function checkUnreadReplies(
   });
 
   // Filter out replies newer than the last id
-  replies = replies.filter((reply) => {
-    return reply.comment_reply.id > lastReplyId;
-  });
+  replies = replies.filter((reply) => reply.comment_reply.id > lastReplyId);
 
   const isFirstCheck = lastReplyId == null;
 
@@ -45,8 +40,6 @@ async function checkUnreadReplies(
     // So just update the ID and let the NEXT check send NEW notifications.
     return lastReplyId;
   }
-
-  console.log("Found " + replies.length + " unread replies");
 
   for (const reply of replies) {
     const notificationType = notification.get("type") as string;
@@ -76,12 +69,9 @@ async function checkUnreadReplies(
  * @param client - the Lemmy HTTP client to use to make API calls. This client should already be initialized with the proper [jwt].
  * @param notification - the [AccountNotification] to check for unread mentions.
  */
-async function checkUnreadMentions(
-  client: LemmyHttp,
-  notification: AccountNotification
-) {
+async function checkUnreadMentions(client: LemmyHttp, notification: AccountNotification) {
   // You can hard-code this to a lower number for testing
-  var lastMentionId = notification.get("lastMentionId") as number;
+  let lastMentionId = notification.get("lastMentionId") as number;
 
   // Get all unread mentions
   let { mentions } = await client.getPersonMentions({
@@ -91,9 +81,7 @@ async function checkUnreadMentions(
   });
 
   // Filter out mentions newer than the last id
-  mentions = mentions.filter((mention) => {
-    return mention.person_mention.id > lastMentionId;
-  });
+  mentions = mentions.filter((mention) => mention.person_mention.id > lastMentionId);
 
   const isFirstCheck = lastMentionId == null;
 
@@ -104,8 +92,6 @@ async function checkUnreadMentions(
     // So just update the ID and let the NEXT check send NEW notifications.
     return lastMentionId;
   }
-  
-  console.log("Found " + mentions.length + " unread mentions");
 
   for (const mention of mentions) {
     const notificationType = notification.get("type") as string;
@@ -134,12 +120,9 @@ async function checkUnreadMentions(
  * @param client - the Lemmy HTTP client to use to make API calls. This client should already be initialized with the proper [jwt].
  * @param notification - the [AccountNotification] to check for unread private messages.
  */
-async function checkUnreadMessages(
-  client: LemmyHttp,
-  notification: AccountNotification
-) {
+async function checkUnreadMessages(client: LemmyHttp, notification: AccountNotification) {
   // You can hard-code this to a lower number for testing
-  var lastMessageId = notification.get("lastMessageId") as number;
+  let lastMessageId = notification.get("lastMessageId") as number;
 
   // Get all unread private messages
   let { private_messages: privateMessages } = await client.getPrivateMessages({
@@ -148,9 +131,7 @@ async function checkUnreadMessages(
   });
 
   // Filter out messages newer than the last id
-  privateMessages = privateMessages.filter((privateMessage) => {
-    return privateMessage.private_message.id > lastMessageId;
-  });
+  privateMessages = privateMessages.filter((privateMessage) => privateMessage.private_message.id > lastMessageId);
 
   const isFirstCheck = lastMessageId == null;
 
@@ -161,8 +142,6 @@ async function checkUnreadMessages(
     // So just update the ID and let the NEXT check send NEW notifications.
     return lastMessageId;
   }
-
-  console.log("Found " + privateMessages.length + " unread messages");
 
   for (const message of privateMessages) {
     const notificationType = notification.get("type") as string;
@@ -186,17 +165,17 @@ async function checkUnreadMessages(
 }
 
 async function checkTests(notification: AccountNotification) {
-  if (notification.get("testQueued") as boolean) {
-    console.log('Found 1 test queued');
-    
+  if (notification.get("test") as boolean) {
+    console.log('Found 1 queued test notification');
+
     const notificationType = notification.get("type") as string;
     const token = notification.get("token") as string;
 
     switch (notificationType) {
       case "apn":
-        // TODO: Implement this for APN
+      // TODO: Implement this for APN
       case "unifiedPush":
-        await sendTestUnifiedPushNotification(token);
+        await sendUnifiedPushNotification(createUnifiedPushNotification(undefined, undefined, undefined), token, true);
         break;
       default:
         break;
@@ -205,12 +184,18 @@ async function checkTests(notification: AccountNotification) {
 }
 
 /**
- * The main function that checks for new notifications. This is triggered from a cron job and is ran at every `INTERVAL` minutes.
+ * The main function that checks for new notifications.
+ * This is triggered from a cron job and is ran at every `INTERVAL` minutes.
  */
 const checkNotifications = async () => {
   const notifications = await AccountNotification.findAll();
+  console.log(`Starting notification check @ ${new Date().toISOString()}`);
+  console.log(`Found ${notifications.length} accounts to check`);
 
-  console.log("Found " + notifications.length + " notifications to check");
+  if (notifications.length === 0) {
+    console.log(`Completed notification check @ ${new Date().toISOString()}`);
+    return;
+  }
 
   // Group notifications by instance
   let groupedNotifications: { [key: string]: AccountNotification[] } = {};
@@ -225,9 +210,7 @@ const checkNotifications = async () => {
     }
   }
 
-  console.log(
-    "Found " + Object.keys(groupedNotifications).length + " instances to check"
-  );
+  console.log(`Found ${Object.keys(groupedNotifications).length} instances to check: [${Object.keys(groupedNotifications).join(", ")}]`);
 
   // For each instance, check if the given account has any notifications
   const instances = Object.keys(groupedNotifications);
@@ -237,6 +220,7 @@ const checkNotifications = async () => {
     const client: LemmyHttp = new LemmyHttp(`https://${instance}`);
 
     for (const notification of notifications) {
+      console.log(`Checking notifications for id ${notification.getDataValue("id")} on instance: ${instance}`);
       const jwt = notification.getDataValue("jwt") as string;
       client.setHeaders({ Authorization: `Bearer ${jwt}` });
 
@@ -247,28 +231,23 @@ const checkNotifications = async () => {
         await checkTests(notification);
 
         // Update the notification
-        await notification.update({ lastReplyId: lastReplyId, lastMentionId: lastMentionId, lastMessageId: lastMessageId, testQueued: false });
+        await notification.update({ lastReplyId: lastReplyId, lastMentionId: lastMentionId, lastMessageId: lastMessageId, test: false });
       } catch (error) {
         console.error(error);
       }
     }
   }
+
+  console.log(`Completed notification check @ ${new Date().toISOString()}`);
 };
 
 // Define a cron schedule with a given interval
 const schedule = `*/${INTERVAL} * * * *`;
 
-// Randomize start time to stagger execution
-const randomDelay = Math.floor(Math.random() * 600);
-
 // Schedule the function to run at the defined intervals with random delay
-const notificationService = cron.schedule(
-  schedule,
-  () => {
-    setTimeout(() => {
-      checkNotifications();
-    }, randomDelay);
-  },
-);
+const notificationService = cron.schedule(schedule, () => {
+  const delay = Math.floor(Math.random() * 600); // Randomize start time to stagger execution
+  setTimeout(() => checkNotifications(), delay);
+});
 
 export { notificationService, checkNotifications };

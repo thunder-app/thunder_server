@@ -1,12 +1,8 @@
 import apn from "@parse/node-apn";
-
-import {
-  CommentReplyView,
-  PersonMentionView,
-  PrivateMessageView,
-} from "lemmy-js-client";
+import { CommentReplyView, PersonMentionView, PrivateMessageView } from "lemmy-js-client";
 
 let provider : apn.Provider;
+
 if (process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID) {
   const options = {
     token: {
@@ -18,8 +14,7 @@ if (process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID) {
   };
 
   provider = new apn.Provider(options);
-}
-else {
+} else {
   console.warn("APN Key ID or Team ID is empty; not initializing APN service.");
 }
 

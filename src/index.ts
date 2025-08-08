@@ -1,9 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
 
-// Load environment variables
-dotenv.config();
-
 // Types
 import { Request, Response } from "express";
 import { NotificationRequest, DeleteNotificationRequest } from "./types/notification_request";
@@ -11,21 +8,20 @@ import { NotificationRequest, DeleteNotificationRequest } from "./types/notifica
 // Database
 import sequelize from "./database/database";
 
-// Helper functions
-import { addAccountNotification, generateTestNotification } from "./notifications/notifications";
-
-// Start cron job
-import { notificationService, checkNotifications } from "./notifications/service/notification_service";
+// Models
 import AccountNotification from "./database/models/account_notification";
-notificationService.start();
 
-const DEBUG_MODE = false;
+// Notification service
+import { addAccountNotification, generateTestNotification } from "./notifications/notifications";
+import { notificationService, checkNotifications } from "./notifications/service/notification_service";
 
-// Create an Express app
+dotenv.config({ quiet: true });
+
+const DEBUG_MODE = process.env.DEBUG_MODE === "true"; // When true, the server will drop all tables on startup
+
 const app = express();
 const port = process.env.APP_PORT ? parseInt(process.env.APP_PORT) : 2831;
 
-// Middleware for body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -36,9 +32,7 @@ app.get("/health", (req: Request, res: Response) => {
 
 app.post("/notifications", async (req: Request, res: Response) => {
   const { type, token, jwt, instance } = req.body as NotificationRequest;
-
-  if (!type || !token || !jwt || !instance)
-    return res.status(400).send("Missing one or more required parameters");
+  if (!type || !token || !jwt || !instance) return res.status(400).send("Missing one or more required parameters");
 
   try {
     const results = [];
@@ -55,9 +49,7 @@ app.post("/notifications", async (req: Request, res: Response) => {
 
 app.delete("/notifications", (req, res) => {
   const { jwts } = req.body as DeleteNotificationRequest;
-
-  if (!jwts)
-    return res.status(400).send("Missing one or more required parameters");
+  if (!jwts) return res.status(400).send("Missing one or more required parameters");
 
   try {
     for (const jwt of jwts) {
@@ -73,9 +65,7 @@ app.delete("/notifications", (req, res) => {
 
 app.post("/test", async (req: Request, res: Response) => {
   const { jwt } = req.body as NotificationRequest;
-
-  if (!jwt)
-    return res.status(400).send("Missing one or more required parameters");
+  if (!jwt) return res.status(400).send("Missing one or more required parameters");
 
   try {
     let result = await generateTestNotification(jwt);
@@ -92,8 +82,11 @@ app.post("/test", async (req: Request, res: Response) => {
 
 // Start the server and connect to the database
 app.listen(port, async () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Thunder server is running on http://localhost:${port}`);
 
   await sequelize.sync({ force: DEBUG_MODE });
   console.log("All models were synchronized successfully.");
 });
+
+// Start the notification service
+notificationService.start();
