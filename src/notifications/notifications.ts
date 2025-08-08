@@ -9,28 +9,26 @@ import AccountNotification from "../database/models/account_notification";
  *
  * @returns the created AccountNotification record
  */
-async function addAccountNotification(
-  type: string,
-  token: string,
-  jwt: string,
-  instance: string,
-): Promise<AccountNotification> {
+async function addAccountNotification(type: string, token: string, jwt: string, instance: string): Promise<AccountNotification> {
   // First, check to see if the Notification record already exists for a given [jwt]
   let existingAccountNotification = await AccountNotification.findOne({ where: { jwt } });
-  
+
   if (!existingAccountNotification) {
     const notification = await AccountNotification.create({ type, token, jwt, instance });
     await notification.save();
 
+    console.log(`Created new AccountNotification record for ${instance}`);
     return notification;
   }
-  
+
   if (existingAccountNotification && existingAccountNotification.get("type") === type && existingAccountNotification.get("token") === token && existingAccountNotification.get("instance") === instance) {
     // Check to see if all the fields match. If so, we don't need to create a new AccountNotification record.
     return existingAccountNotification;
   } else {
     // Update the existing AccountNotification record
     existingAccountNotification = await existingAccountNotification?.update({ type, token, instance });
+
+    console.log(`Updated existing AccountNotification record for ${instance}`);
     return existingAccountNotification;
   }
 }
@@ -56,22 +54,23 @@ async function getAccountNotification(token: string): Promise<AccountNotificatio
  *
  * @returns the number of deleted AccountNotification records
  */
-async function deleteAccountNotification(
-  jwt: string | undefined,
-  token: string | undefined
-): Promise<number> {
+async function deleteAccountNotification(jwt?: string, token?: string): Promise<number> {
   if (!jwt && !token) throw new Error("Either jwt or token must be provided");
   if (jwt && token) throw new Error("Only one of jwt or token can be provided");
 
-  if (jwt) return await AccountNotification.destroy({ where: { jwt } });
+  if (jwt) {
+    const deleted = await AccountNotification.destroy({ where: { jwt } });
+    console.log(`Deleted ${deleted} AccountNotification record from given jwt`);
+    return deleted;
+  }
 
-  return await AccountNotification.destroy({ where: { token } });
+  const deleted = await AccountNotification.destroy({ where: { token } });
+  console.log(`Deleted ${deleted} AccountNotification records from given token`);
+  return deleted;
 }
 
-async function generateTestNotification(
-  jwt: string | undefined,
-): Promise<[affectedCount: number]> {
-  return AccountNotification.update({ testQueued: true }, { where: { jwt } });
+async function generateTestNotification(jwt?: string): Promise<[affectedCount: number]> {
+  return AccountNotification.update({ test: true }, { where: { jwt } });
 }
 
 export { addAccountNotification, getAccountNotification, deleteAccountNotification, generateTestNotification };

@@ -4,5 +4,6 @@
 # Apple Push Notification Certificate
 *.p8
 
-# Node
+# Node modules and build artifacts
+dist
 node_modules
